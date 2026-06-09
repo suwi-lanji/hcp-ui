@@ -390,6 +390,7 @@ function renderFlat(
 function renderLineItems(
   config: ModuleConfig,
   items: Record<string, unknown>[],
+  values: Record<string, unknown>,
   onUpdate: (i: number, k: string, v: unknown) => void,
   onAdd: () => void,
   onRemove: (i: number) => void,
@@ -398,6 +399,25 @@ function renderLineItems(
 ) {
   const { lineItems } = config;
   if (!lineItems) return null;
+
+  const branchOpts = resolver ? resolver('branch_id', values, 'main').options : [];
+  const branchOpt = branchOpts.find((o: { value: string }) => o.value === String(values.branch_id ?? ''));
+  const branchCode = (branchOpt as unknown as { code?: string } | undefined)?.code;
+  const formatMoney = (val: unknown): string => {
+    if (branchCode) {
+      try {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: branchCode,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(Number(val || 0));
+      } catch {
+        return `$${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      }
+    }
+    return `$${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  };
 
   return (
     <Card shadow="xs" radius="md" withBorder p="lg" mb="md">
@@ -426,7 +446,7 @@ function renderLineItems(
                   <Table.Td key={f.key} style={{ padding: '4px 6px' }}>
                     {f.computed ? (
                       <Text size="xs" fw={600}>
-                        ${Number(item[f.key] || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {formatMoney(item[f.key])}
                       </Text>
                     ) : f.type === 'select' ? (
                       (() => {
@@ -515,8 +535,14 @@ export function ModuleForm({ mode }: FormProps) {
           if (cancelled) return;
           if (result.data) {
             setFormValues(result.data as Record<string, unknown>);
-            if (result.data && typeof result.data === 'object' && 'lineItems' in result.data) {
-              setLineItems((result.data.lineItems as Record<string, unknown>[]) || []);
+            if (moduleConfig.lineItems) {
+              const lineKey = moduleConfig.lineItems.name;
+              const lines = (result.data as Record<string, unknown>)[lineKey];
+              if (Array.isArray(lines)) {
+                setLineItems(lines as Record<string, unknown>[]);
+              } else {
+                setLineItems([{}]);
+              }
             }
           }
         })
@@ -735,6 +761,7 @@ export function ModuleForm({ mode }: FormProps) {
       {moduleConfig.lineItems && renderLineItems(
         moduleConfig,
         lineItems,
+        formValues,
         updateLineItem,
         addLineItem,
         removeLineItem,

@@ -1,29 +1,36 @@
 import { useEffect, useState } from 'react';
-import { useConfigStore } from '../stores/configStore';
+import { configApi } from '../api/endpoints/config';
 import type { ModuleConfig } from '../types/moduleConfig';
 
-export function useModuleConfig(entity: string | null) {
-  const [fetchedConfig, setFetchedConfig] = useState<ModuleConfig | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const fetchModuleConfig = useConfigStore((s) => s.fetchModuleConfig);
-  const cachedConfig = useConfigStore((s) => (entity ? s.moduleConfigs[entity] : null));
+interface UseModuleConfigResult {
+  config: ModuleConfig | null;
+  loading: boolean;
+  error: string | null;
+}
 
-  // Derived state: prefer cached, fall back to last fetched result
-  const config = cachedConfig ?? fetchedConfig;
+export function useModuleConfig(entity: string | null): UseModuleConfigResult {
+  const [config, setConfig] = useState<ModuleConfig | null>(null);
+  const [loading, setLoading] = useState<boolean>(Boolean(entity));
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!entity || cachedConfig) return;
+    if (!entity) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setConfig(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
 
-    fetchModuleConfig(entity)
+    configApi
+      .getModule(entity)
       .then((result) => {
         if (cancelled) return;
-        setFetchedConfig(result);
+        setConfig(result as ModuleConfig);
         if (!result) {
           setError('Module not found');
         }
@@ -31,6 +38,7 @@ export function useModuleConfig(entity: string | null) {
       .catch((err) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load module');
+        setConfig(null);
       })
       .finally(() => {
         if (cancelled) return;
@@ -40,7 +48,7 @@ export function useModuleConfig(entity: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [entity, cachedConfig, fetchModuleConfig]);
+  }, [entity]);
 
   return { config, loading, error };
 }

@@ -3,10 +3,11 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Card, Text, Group, TextInput, Select, Pagination, ActionIcon, Button, Divider, Breadcrumbs, Grid, Collapse, Loader, Table, Badge } from '@mantine/core';
 import { IconSearch, IconPlus, IconFilter, IconArrowRight, IconX, IconRefresh } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
-import { configApi } from '../../api/endpoints/config';
 import { dataApi } from '../../api/endpoints/data';
 import { useApps } from '../../hooks/useConfigStore';
+import { useModuleConfig } from '../../hooks/useModuleConfig';
 import { normalizeOptions } from '../form/selectUtils';
+import { formatCurrency } from '../../utils/currency';
 
 const statusColorMap: Record<string, string> = {
   active: 'green', inactive: 'gray', discontinued: 'red', draft: 'gray',
@@ -25,30 +26,6 @@ interface ListColumn {
   display?: { type: string; options?: { value: string; label: string }[] };
 }
 
-interface ListFilter {
-  key: string;
-  label: string;
-  type: 'select' | 'text' | 'dateRange';
-  options?: { value: string; label: string }[];
-}
-
-interface ListConfig {
-  defaultSort: string;
-  columns: ListColumn[];
-  filters: ListFilter[];
-  pageSize: number;
-}
-
-interface ModuleConfig {
-  key: string;
-  label: string;
-  singularLabel: string;
-  icon: string;
-  basePath: string;
-  appKey: string;
-  list: ListConfig;
-  fields?: { key: string; options?: { value: string; label: string }[] }[];
-}
 
 export function ModuleList() {
   const [searchParams] = useSearchParams();
@@ -56,7 +33,7 @@ export function ModuleList() {
   const apps = useApps();
   const entity = searchParams.get('entity') || '';
 
-  const [moduleConfig, setModuleConfig] = useState<ModuleConfig | null>(null);
+  const { config: moduleConfig } = useModuleConfig(entity || null);
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -67,7 +44,7 @@ export function ModuleList() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [filtersOpened, { toggle: toggleFilters }] = useDisclosure(false);
 
-  const pageSize = moduleConfig?.list.pageSize || 20;
+  const pageSize = moduleConfig?.list?.pageSize || 20;
   const listConfig = moduleConfig?.list;
 
   const appKey = useMemo(() => {
@@ -122,19 +99,6 @@ export function ModuleList() {
     }
   }, [entity, moduleConfig, page, pageSize, searchQuery, filters, sortKey, sortDir]);
 
-  useEffect(() => {
-    if (!entity) return;
-    configApi.getModule(entity).then((mod) => {
-      const resolved = mod as unknown as ModuleConfig;
-      setModuleConfig(resolved);
-
-      const defaultSort = resolved.list?.defaultSort || 'created_at desc';
-      const [sort, dir] = defaultSort.split(' ');
-      setSortKey(sort);
-      setSortDir((dir || 'asc') as 'asc' | 'desc');
-    });
-  }, [entity]);
-
   // Fetch on mount/config change. The setState calls inside fetchData are async,
   // so this does not cause cascading renders.
   useEffect(() => {
@@ -144,10 +108,22 @@ export function ModuleList() {
   }, [moduleConfig, fetchData]);
 
   useEffect(() => {
+    if (moduleConfig && !sortKey) {
+      const defaultSort = moduleConfig.list?.defaultSort || 'created_at desc';
+      const [sort, dir] = defaultSort.split(' ');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSortKey(sort);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSortDir((dir || 'asc') as 'asc' | 'desc');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleConfig]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery !== undefined) {
         setPage(1);
- fetchData();
+        fetchData();
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -185,7 +161,7 @@ export function ModuleList() {
     navigate(`${moduleConfig?.basePath}/${String(row.id)}?entity=${entity}`);
   };
 
-  const renderCell = (value: unknown, col: ListColumn) => {
+  const renderCell = (value: unknown, col: ListColumn, row: Record<string, unknown>) => {
     if (value === undefined || value === null) return '-';
 
     const field = moduleConfig?.fields?.find((f) => f.key === col.key);
@@ -198,7 +174,7 @@ export function ModuleList() {
     }
 
     if (col.type === 'currency') {
-      return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      return formatCurrency(value, row);
     }
 
     if (col.type === 'number') {
@@ -207,7 +183,12 @@ export function ModuleList() {
 
     if (fieldOptions.length > 0) {
       const opt = fieldOptions.find((o) => o.value === value);
-      return opt?.label || String(value);
+      if (opt) return opt.label;
+    }
+
+    const displays = row.__displays as Record<string, string> | undefined;
+    if (displays && col.key in displays && displays[col.key]) {
+      return displays[col.key];
     }
 
     return String(value);
@@ -379,7 +360,7 @@ export function ModuleList() {
                         key={col.key}
                         style={{ fontSize: 13, borderBottomColor: 'var(--sap-element-border-color)' }}
                       >
-                        {renderCell(row[col.key], col)}
+                        {renderCell(row[col.key], col, row)}
                       </Table.Td>
                     ))}
                     <Table.Td style={{ borderBottomColor: 'var(--sap-element-border-color)' }}>

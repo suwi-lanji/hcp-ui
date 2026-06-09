@@ -1,13 +1,15 @@
 import { Box, Table, Badge } from '@mantine/core';
 import { getFieldLabel } from './fieldRenderers';
 import type { LineItemDef } from '@/types/moduleConfig';
+import { formatCurrency } from '@/utils/currency';
 
 interface LineItemsTableProps {
   lineItems: LineItemDef;
   data: Record<string, unknown>[];
+  parentRow?: Record<string, unknown>;
 }
 
-export function LineItemsTable({ lineItems, data }: LineItemsTableProps) {
+export function LineItemsTable({ lineItems, data, parentRow }: LineItemsTableProps) {
   const total = data.reduce((sum, item) => sum + Number(item.total || item.lineTotal || 0), 0);
 
   return (
@@ -32,7 +34,7 @@ export function LineItemsTable({ lineItems, data }: LineItemsTableProps) {
                 return (
                   <Table.Td key={field.key} style={{ fontSize: 12 }}>
                     {field.type === 'currency' ? (
-                      `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      formatCurrency(value, parentRow)
                     ) : field.type === 'checkbox' ? (
                       <Badge size="xs" variant="light" color={value ? 'green' : 'gray'}>
                         {value ? 'Yes' : 'No'}
@@ -52,7 +54,7 @@ export function LineItemsTable({ lineItems, data }: LineItemsTableProps) {
               Total
             </Table.Td>
             <Table.Td style={{ fontWeight: 700 }}>
-              ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(total, parentRow)}
             </Table.Td>
           </Table.Tr>
         </Table.Tfoot>

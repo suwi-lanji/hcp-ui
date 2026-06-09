@@ -169,6 +169,7 @@ export function ModuleView() {
                   <LineItemsTable
                     lineItems={module.lineItems}
                     data={((data as Record<string, unknown>)[tab.lineItemRef || 'lineItems'] as Record<string, unknown>[]) || []}
+                    parentRow={data as Record<string, unknown>}
                   />
                 )}
                 {tab.type === 'custom' && tab.htmlContent && (

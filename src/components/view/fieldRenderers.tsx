@@ -1,6 +1,7 @@
 import { Badge, Text } from '@mantine/core';
 import type { FieldDef, LineItemFieldDef } from '@/types/moduleConfig';
 import { normalizeOptions } from '../form/selectUtils';
+import { formatCurrency } from '@/utils/currency';
 
 export const statusColorMap: Record<string, string> = {
   draft: 'gray',
@@ -32,7 +33,7 @@ export function getFieldLabel(value: unknown, field: FieldLike): string {
   return String(value);
 }
 
-export function renderFieldValue(value: unknown, field: FieldDef) {
+export function renderFieldValue(value: unknown, field: FieldDef, row?: Record<string, unknown>) {
   if (value === undefined || value === null) {
     return <Text size="sm" c="dimmed">-</Text>;
   }
@@ -48,7 +49,7 @@ export function renderFieldValue(value: unknown, field: FieldDef) {
     case 'currency':
       return (
         <Text size="sm" fw={600}>
-          ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          {formatCurrency(value, row)}
         </Text>
       );
 

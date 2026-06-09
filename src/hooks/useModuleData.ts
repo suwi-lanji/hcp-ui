@@ -38,6 +38,7 @@ export function useModuleData<T = Record<string, unknown>>(module: string, id: s
   }, [module, id]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchData();
   }, [fetchData]);
 

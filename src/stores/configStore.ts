@@ -7,7 +7,6 @@ import type {
   RouteDef,
   LaunchpadConfigResolved,
 } from '../api/types';
-import type { ModuleConfig } from '../types/moduleConfig';
 
 interface ConfigStore {
   navigation: NavigationConfig | null;
@@ -16,12 +15,10 @@ interface ConfigStore {
   routes: RouteDef[];
   launchpad: LaunchpadConfigResolved | null;
   modules: Record<string, string>;
-  moduleConfigs: Record<string, ModuleConfig>;
   isLoading: boolean;
   error: string | null;
   fetchAll: () => Promise<void>;
   isInitialized: boolean;
-  fetchModuleConfig: (entity: string) => Promise<ModuleConfig | null>;
 }
 
 export const useConfigStore = create<ConfigStore>((set, get) => ({
@@ -31,7 +28,6 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   routes: [],
   launchpad: null,
   modules: {},
-  moduleConfigs: {},
   isLoading: false,
   error: null,
   isInitialized: false,
@@ -64,21 +60,6 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load configuration';
       set({ error: message, isLoading: false });
-    }
-  },
-
-  fetchModuleConfig: async (entity: string) => {
-    const cached = get().moduleConfigs[entity];
-    if (cached) return cached;
-
-    try {
-      const config = await configApi.getModule(entity);
-      set((state) => ({
-        moduleConfigs: { ...state.moduleConfigs, [entity]: config as ModuleConfig },
-      }));
-      return config as ModuleConfig;
-    } catch {
-      return null;
     }
   },
 }));

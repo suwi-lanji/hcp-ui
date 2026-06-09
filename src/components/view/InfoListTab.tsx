@@ -14,7 +14,7 @@ export function InfoListTab({ fields, data }: InfoListTabProps) {
         <Grid.Col key={field.key} span={{ base: 12, sm: 6, md: 4 }}>
           <div>
             <Text size="xs" fw={500} mb={4} c="dimmed">{field.label}</Text>
-            {renderFieldValue(data[field.key], field)}
+            {renderFieldValue(data[field.key], field, data)}
           </div>
         </Grid.Col>
       ))}
